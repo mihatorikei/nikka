@@ -1,0 +1,24 @@
+*:active,
+*:focus {
+    outline: none;
+}
+
+body {
+    /* @apply bg-gradient-to-l from-sky to-purple-9 h-screen; */
+
+    @apply text-dark dark:(text-white text-op-80) bg-cover bg-top bg-fixed mt-12 max-h-screen overflow-hidden;
+    background-image: url('../images/background-light.png');
+    font-family: 'Quicksand', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-image: url('../images/background.png');
+    }
+}
+
+button[disabled] {
+    @apply op-50 filter-grayscale-100 pointer-events-none cursor-default;
+}

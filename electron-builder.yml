@@ -1,0 +1,27 @@
+appId: com.devdice.nikka
+productName: Nikka
+directories:
+  output: release
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+asar: true
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+nsis:
+  oneClick: true
+  allowToChangeInstallationDirectory: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+mac:
+  target:
+    - dmg
+linux:
+  target:
+    - AppImage
