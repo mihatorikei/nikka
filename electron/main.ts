@@ -90,10 +90,9 @@ app.whenReady().then(async () => {
 
   app.on('login', (event, _webContents, _request, authInfo, callback) => {
     if (authInfo.isProxy) {
-      event.preventDefault() // Stop the default login dialog
+      event.preventDefault()
       const username = proxyUrl.split('//')[1].split(':')[0].replace('-session-1', '')
       const password = proxyUrl.split('//')[1].split(':')[1].split('@')[0]
-      // Provide your username and password here
       callback(username, password)
     }
   })
@@ -108,12 +107,14 @@ app.whenReady().then(async () => {
     console.log('initializing folders error', (error as Error).message)
   }
 
+  createWindow()
+  
   mainWindow.webContents.on('did-attach-webview', (_e, webview) => {
     try {
-      // 1. Attach CDP Debugger to the webview's webContents
       webview.debugger.attach('1.3');
       webview.debugger.sendCommand('Network.enable');
       webview.debugger.on('message', async (event, method, params) => {
+        // console.log('message received', method)
         if (method === 'Network.responseReceived') {
           const { requestId, response } = params;
           if ((response.url as String).startsWith('https://api-mauritania.blsinternational.com')) {
@@ -125,7 +126,7 @@ app.whenReady().then(async () => {
                 { requestId }
               );
             } catch (error) {
-              console.log('catching response body failed', (error as Error).message)
+              console.log('catching response body failed', response.url, (error as Error).message)
             }
 
             webview.send('get-response', {
@@ -139,12 +140,7 @@ app.whenReady().then(async () => {
     } catch (err) {
       console.error('Debugger attach failed:', err);
     }
-    // webview.send('response', 'test')
-    // console.log('created and sent')
   })
-
-  createWindow()
-
 })
 
 app.on('window-all-closed', () => {

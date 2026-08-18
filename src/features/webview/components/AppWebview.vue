@@ -36,7 +36,6 @@ const bookingNavigator = useBookingNavigator(webviewRef, client, webviewControll
 // const reRegisterNavigator = useReRegisterNavigator(webviewRef, client, webviewController.nikkaController, autoMode)
 
 const showTools = ref(false)
-const isFullScreen = ref(false)
 
 function navigate() {
   let url = webviewController.url
@@ -63,13 +62,9 @@ function toggleFullscreen() {
   if (document.fullscreenElement === null) {
     document.getElementById(`webview-container-${client.$id}`)?.requestFullscreen()
     webviewRef.value?.setZoomLevel(0)
-    webviewRef.value!.style.height = '100vh'
-    isFullScreen.value = true
   } else {
     document.exitFullscreen()
     webviewRef.value?.setZoomLevel(-1.3)
-    webviewRef.value!.style.height = '400px'
-    isFullScreen.value = false
   }
   showTools.value = false
 }
@@ -94,7 +89,7 @@ onMounted(() => {
 })
 </script>
 <template>
-  <div class="relative grid gap-y-1 rounded-xl b-1 b-white b-op-30 w-full h-640px bg-gradient-linear from-white from-op-50 to-transparent dark:(bg-gradient-linear from-#7f7f7f40 to-transparent) mt-12">
+  <div class="relative flex flex-col gap-y-1 rounded-xl b-1 b-white b-op-30 w-full h-640px bg-gradient-linear from-white from-op-50 to-transparent dark:(bg-gradient-linear from-#7f7f7f40 to-transparent) mt-12">
     <!-- tools -->
     <ul class="flex items-center gap-x-2 absolute -top-5 -right-2 children:(duration-200 cursor-pointer) hover:children:scale-120 z-1">
       <li>
@@ -131,7 +126,7 @@ onMounted(() => {
       <p class="absolute op-70 font-bold text-black dark:text-white truncate text-xs left-14 top-12px max-w-60% font-['Poppins'] capitalize bg-white bg-op-20 w-max inset-x-0 ps-3.5 pe-8px py-3px rounded-tr-xl" :title="`${client.firstName} ${client.lastName}`">{{ client.firstName }} {{ client.lastName }}</p>
     </div>
     <!-- webview container -->
-    <div :id="`webview-container-${client.$id}`" class="relative webview-container">
+    <div :id="`webview-container-${client.$id}`" class="relative h-full webview-container">
       <!-- loading indicator -->
       <div v-show="webviewController.isLoading" class="absolute top-0 z-0 inset-x-0">
         <div class="h-1 w-full overflow-hidden rounded-full">
@@ -146,7 +141,7 @@ onMounted(() => {
       </button>
       <!-- navigation tools -->
       <div v-if="showTools" class="absolute inset-0 bg-black bg-op-50 flex flex-col justify-between px-2 backdrop-blur-5 z-1" @click="showTools = false">
-        <div class="flex flex items-center gap-x-1 mt-3" :class="{ container: isFullScreen }">
+        <div class="flex flex items-center gap-x-1 mt-3">
           <form class="w-full" @submit.prevent="navigate">
             <input v-model="webviewController.url" type="text" class="rounded-lg bg-white bg-op-20 ps-3 py-6px w-full" placeholder="URL goes here..." @click.stop />
           </form>
@@ -210,8 +205,8 @@ onMounted(() => {
       </div>
 
       <!-- webview container -->
-      <div>
-        <div v-if="webviewController.error.message" class="flex flex-col gap-y-3 items-center justify-center text-center h-600px text-wrap px-5">
+      <div class="h-full">
+        <div v-if="webviewController.error.message" class="flex flex-col gap-y-3 items-center justify-center text-center h-full text-wrap px-5">
           <p class="text-2xl font-black text-red-5" v-text="`Error ${webviewController.error.code}`" />
           <p class="font-bold" v-text="webviewController.error.message" />
           <small class="op-50 text-wrap break-all line-clamp-2" v-text="webviewController.url" />
@@ -221,7 +216,7 @@ onMounted(() => {
           </button>
         </div>
         <!-- actual webview -->
-        <webview v-show="!webviewController.error.message" ref="app-webview" :src="initUrl" class="overflow-hidden w-full h-600px rounded-xl" webpreferences="contextIsolation=no" disablewebsecurity :preload="preloadPath" :partition="`persist:${client.$id}`" />
+        <webview v-show="!webviewController.error.message" ref="app-webview" :src="initUrl" class="overflow-hidden w-full h-full rounded-xl" webpreferences="contextIsolation=no" disablewebsecurity :preload="preloadPath" :partition="`persist:${client.$id}`" />
       </div>
       <NikkaGuider :guider="webviewController.nikkaGuide" :action="props.browser.action" />
     </div>

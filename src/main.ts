@@ -22,6 +22,7 @@ nextTick(async () => {
   mainApp.provide('appVersion', appVersion)
 })
 
+// TODO: 
 store.init().then(async (status) => {
   let viewComponent: DefineComponent<any, any, any>
   console.log('init response', status)

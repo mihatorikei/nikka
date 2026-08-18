@@ -127,9 +127,11 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
 
   async function forceClick(selector: string) {
     return webviewTag.value?.executeJavaScript(`(() => {
+        console.log("about to force click")
         const element = document.querySelector('${selector}')
         
         if(!element) return;
+        console.log("force click is ok")
 
         element.focus();
       
@@ -233,17 +235,21 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
   }
 
   async function handleManageAppointments() {
+    let busy = false
     async function handleManageResponse(e: Electron.IpcMessageEvent) {
       await new Promise(r => setTimeout(r, 500))
       const response = e.args[0] as { url: string, status: number, body: string }
       console.log('response run on', response.status, response.url)
-      if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/calendar')) {
+      console.log('response at manage found', response)
+      if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/calendar') || response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/family/calendar')) {
+        console.log('calendar response found', response)
         try {
           const responseBody = JSON.parse(response.body) as { message?: string, statusCode?: number, month?: number, year: number, days: {}[] }
           if (response.status === 429 || responseBody.statusCode === 429 || responseBody.days.length === 0) {
             nikka.say('nothing yet, close it')
             // close calender
             await webviewTag.value?.executeJavaScript("document.querySelector('div.sticky.bottom-0 button')?.click()")
+            // handleInCalendar();
           } else if (responseBody.days.length > 0) {
             nikka.say('let get that slots')
             removeAllListeners()
@@ -256,8 +262,13 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
           webviewTag.value?.executeJavaScript("document.querySelector('div.sticky.bottom-0 button')?.click()")
         }
       }
-
+      
       if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/appointments/manage?')) {
+        if(busy){
+          console.log("it's busy...")
+          return;
+        }
+        busy = true
         nikka.say('waiting for 1s before open that dropdown...')
         // await new Promise(r => setTimeout(r, 1000))
         // check again
@@ -276,6 +287,7 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
               document.querySelector('#main-scrollable-container button').click()
             })()`)
         }
+        busy = false
       }
     }
 
@@ -289,6 +301,12 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
     // await forceClick('div[role=menuitem]')
 
   }
+
+  // async function handleInCalendar(){
+  //   webviewTag.value?.executeJavaScript(`(() => {
+  //     document.querySelector('div.absolute.inset-0.z-10').style.display = 'none'
+  //     })()`)
+  // }
 
   async function handleSlots() {
     nikka.say('handling slots...')
@@ -529,6 +547,7 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
 export default useBookingNavigator
 
 
+// https://api-mauritania.blsinternational.com/api/v1/slots/family/calendar?center_id=1&country_id=1&center_type=hub&number_of_applicants=2&visa_type_id=2&slotsAvailabilityType=1&appointment_channel_id=1&visa_sub_type_id=1&nationality_id=128
 
 /**
  *

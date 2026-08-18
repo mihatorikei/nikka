@@ -1,6 +1,6 @@
 {
   "name": "nikka",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Bls spain booking helper",
   "private": true,
   "main": "dist-electron/main.js",
