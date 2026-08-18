@@ -39,9 +39,25 @@ function restart() {
 }
 
 watch(electronOutput, { recursive: true }, (_event, filename) => {
+  // Only restart when main-process outputs change (avoid restarting for renderer builds and other noise).
   // TypeScript also writes maps and declarations; only executable output needs
   // an application restart.
-  if (filename && /\.(?:js|cjs|mjs)$/.test(filename)) restart()
+  if (!filename) return
+
+  // Normalize and check only the basename to avoid platform path differences.
+  const changedBasename = path.basename(filename)
+  const mainFiles = new Set([
+    'main.js', 'main.cjs', 'main.mjs',
+    'preload.js', 'preload.cjs', 'preload.mjs'
+  ])
+
+  // Only consider JS-like compiled outputs.
+  if (!/\.(?:js|cjs|mjs)$/.test(changedBasename)) return
+
+  // Restart when a main process file changed (exact match or common prefixes).
+  if (mainFiles.has(changedBasename) || changedBasename.startsWith('main.') || changedBasename.startsWith('preload.')) {
+    restart()
+  }
 })
 
 start()
