@@ -74,11 +74,6 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
       if (response.url === 'https://api-mauritania.blsinternational.com/api/v1/users/login') {
         if (response.status === 429) {
           await new Promise(r => setTimeout(r, 500))
-          if (isSessionStillValid) {
-            nikka.say('session is not expired let\'s retry...')
-            webviewTag.value?.loadURL('https://spain-mauritania.blsinternational.com/manage-appointments')
-            return
-          }
           if (maxRetries >= 20) {
             maxRetries = 0
             nikka.say(`limit reached (${maxRetries}) refreshing...`, 'error')
@@ -89,13 +84,12 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
             maxRetries++
           }
         } else if (response.status === 200) {
-          // console.log("try to remove login")
-          // removeAllListeners()
           isSessionStillValid = true
-          if(sessionTimeout) clearTimeout(sessionTimeout)
+          if (sessionTimeout) clearTimeout(sessionTimeout)
           sessionTimeout = setTimeout(() => {
             isSessionStillValid = false
           }, 1000 * 60 * 20)
+          removeAllListeners()
         } else {
           console.log('unknown response at login', response)
           webviewTag.value?.reload()
@@ -249,19 +243,23 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
   async function handleManageAppointments() {
     let busy = false
     async function handleManageResponse(e: Electron.IpcMessageEvent) {
-      await new Promise(r => setTimeout(r, 500))
+      await new Promise(r => setTimeout(r, 250))
       const response = e.args[0] as { url: string, status: number, body: string }
-      console.log('response run on', response.status, response.url)
-      console.log('response at manage found', response)
+
       if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/calendar') || response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/family/calendar')) {
-        console.log('calendar response found', response)
+        // if (busy) {
+        //   console.log("it's busy...")
+        //   return;
+        // }
+        // busy = true
         try {
           const responseBody = JSON.parse(response.body) as { message?: string, statusCode?: number, month?: number, year: number, days: {}[] }
-          if (response.status === 429 || responseBody.statusCode === 429 || responseBody.days.length === 0) {
+          if (response.status === 429 || responseBody.statusCode === 429) {
             nikka.say('nothing yet, close it')
             // close calender
             await webviewTag.value?.executeJavaScript("document.querySelector('div.sticky.bottom-0 button')?.click()")
-            // handleInCalendar();
+          } else if (responseBody.days.length === 0) {
+            await handleInCalendar();
           } else if (responseBody.days.length > 0) {
             nikka.say('let get that slots')
             removeAllListeners()
@@ -273,6 +271,7 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
           console.log('error as calendar response', error)
           webviewTag.value?.executeJavaScript("document.querySelector('div.sticky.bottom-0 button')?.click()")
         }
+        // busy = false
       }
 
       if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/appointments/manage?')) {
@@ -314,11 +313,21 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
 
   }
 
-  // async function handleInCalendar(){
-  //   webviewTag.value?.executeJavaScript(`(() => {
-  //     document.querySelector('div.absolute.inset-0.z-10').style.display = 'none'
-  //     })()`)
-  // }
+  async function handleInCalendar() {
+    // let isBusy = false
+    // https://api-mauritania.blsinternational.com/api/v1/slots/family/calendar
+    // https://api-mauritania.blsinternational.com/api/v1/slots/calendar
+    return webviewTag.value?.executeJavaScript(`(async () => {
+      if(document.querySelector('div.absolute.inset-0.z-10')) document.querySelector('div.absolute.inset-0.z-10').style.display = 'none'
+      await new Promise(r => setTimeout(r, 500))
+      if(!!document.querySelector('button[aria-label="Previous month"]')?.disabled){
+        document.querySelector('button[aria-label="Next month"]')?.click()
+      }else{
+        document.querySelector('button[aria-label="Previous month"]')?.click()
+      }
+      })()`)
+    // isBusy = false
+  }
 
   async function handleSlots() {
     nikka.say('handling slots...')
@@ -356,7 +365,7 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
     async function handleSlotResponse(e: Electron.IpcMessageEvent) {
       const response = e.args[0] as { url: string, status: number, body: string }
 
-      if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/date-slots')) {
+      if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/date-slots') || response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/slots/family/date-slots')) {
         if (response.status === 429) {
           nikka.say('reselect the day...')
           // click to unblur day button and click on it again to re-fetch
@@ -368,7 +377,7 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
         } else if (response.status === 200) {
           pickRandomSlot()
         }
-      } else if (response.url === 'https://api-mauritania.blsinternational.com/api/v1/slots/confirm-slot') {
+      } else if (response.url === 'https://api-mauritania.blsinternational.com/api/v1/slots/confirm-slot' || response.url === 'https://api-mauritania.blsinternational.com/api/v1/slots/family/confirm-slot') {
         if (response.status === 204) {
           removeAllListeners()
           handlePhotoAndOtp()
@@ -542,6 +551,19 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
     webviewTag.value?.addEventListener('did-navigate-in-page', handleNavigationInPage)
     emailService = new EmailService(store.settings.smtpApiKey, client.email)
     emailService?.init()
+
+    async function handleSessionResponse(e: Electron.IpcMessageEvent) {
+      const response = e.args[0] as { url: string, status: number, body: string }
+      if (response.url === 'https://api-mauritania.blsinternational.com/api/v1/auth/session' && response.status === 429) {
+        if (isSessionStillValid) {
+          nikka.say('session is not expired let\'s retry...')
+          await new Promise(r => setTimeout(r, 500))
+          webviewTag.value?.loadURL('https://spain-mauritania.blsinternational.com/manage-appointments')
+        }
+      }
+    }
+
+    webviewTag.value?.addEventListener('ipc-message', handleSessionResponse)
   }
 
   async function unInit() {
