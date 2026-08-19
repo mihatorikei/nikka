@@ -6,6 +6,7 @@ import useWebviewStore from '@/stores/webview-store'
 import { useRouter } from 'vue-router'
 import useDatabase from '@/features/appwrite/composables/use-database.ts'
 import NikkaImg from '@/features/core/components/NikkaImg.vue'
+import { ClientsBookingState } from '@/features/appwrite/types'
 
 const router = useRouter()
 const store = useMainStore()
@@ -76,6 +77,26 @@ function toggleTarget() {
   } else {
     client.isPremium = !client.isPremium
     db.update('clients', client.$id, { isPremium: client.isPremium } as Partial<Client>).catch((error) => {
+      store.showNotification((error as Error).message, 'error')
+    })
+  }
+  closeContextMenu()
+}
+
+function setAsDone() {
+  if (store.selectedClients.length) {
+    for (const clientID of store.selectedClients) {
+      const client = store.clients.find((c) => c.$id === clientID)
+      if (client) {
+        client.bookingState = ClientsBookingState.DONE
+        db.update('clients', client.$id, { bookingState: client.bookingState } as Partial<Client>).catch((error) => {
+          store.showNotification((error as Error).message, 'error')
+        })
+      }
+    }
+  } else {
+    client.bookingState = ClientsBookingState.DONE
+    db.update('clients', client.$id, { bookingState: client.bookingState } as Partial<Client>).catch((error) => {
       store.showNotification((error as Error).message, 'error')
     })
   }
@@ -267,9 +288,9 @@ async function sendTo(userID: string, username: string) {
         <img src="@/assets/images/fluent-mail.png" width="22" />
         <span>Go to email</span>
       </li>
-      <li>
+      <li @click="[ClientsBookingState.PENDING, ClientsBookingState.LOCAL].includes(client.bookingState) ? setAsDone : undefined">
         <img src="@/assets/images/fluent-check.png" width="22" />
-        <span>Set as done</span>
+        <span>{{ client.bookingState === ClientsBookingState.DONE ? 'Return To Pending' : 'Set As Done' }}</span>
       </li>
       <!-- <li @click="toggleReady">
         <svg xmlns="http://www.w3.org/2000/svg" class="text-sky-5" width="24" height="24" viewBox="0 0 24 24">

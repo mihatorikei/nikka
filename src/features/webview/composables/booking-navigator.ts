@@ -21,6 +21,9 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
 
   const allListeners = new Set<(e: Electron.IpcMessageEvent) => Promise<void>>()
 
+  let isSessionStillValid = false
+  let sessionTimeout: NodeJS.Timeout
+
   // const sounds = useSoundEffect()
 
   // const emailService = new EmailService(client.email)
@@ -65,13 +68,17 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
   }
 
   async function handleLogin() {
-    console.log("lets handle login")
     let maxRetries = 0
     const handleLoginResponse = async (e: Electron.IpcMessageEvent) => {
       const response = e.args[0] as { url: string, status: number, body: string }
       if (response.url === 'https://api-mauritania.blsinternational.com/api/v1/users/login') {
         if (response.status === 429) {
           await new Promise(r => setTimeout(r, 500))
+          if (isSessionStillValid) {
+            nikka.say('session is not expired let\'s retry...')
+            webviewTag.value?.loadURL('https://spain-mauritania.blsinternational.com/manage-appointments')
+            return
+          }
           if (maxRetries >= 20) {
             maxRetries = 0
             nikka.say(`limit reached (${maxRetries}) refreshing...`, 'error')
@@ -82,8 +89,13 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
             maxRetries++
           }
         } else if (response.status === 200) {
-          console.log("try to remove login")
-          removeAllListeners()
+          // console.log("try to remove login")
+          // removeAllListeners()
+          isSessionStillValid = true
+          if(sessionTimeout) clearTimeout(sessionTimeout)
+          sessionTimeout = setTimeout(() => {
+            isSessionStillValid = false
+          }, 1000 * 60 * 20)
         } else {
           console.log('unknown response at login', response)
           webviewTag.value?.reload()
@@ -195,11 +207,11 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
         }
       } else if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/appointments/can-book')) {
         const responseBody = JSON.parse(response.body) as { possible: boolean, message: string, statusCode?: number }
-        if(responseBody?.statusCode === 429){
+        if (responseBody?.statusCode === 429) {
           await new Promise(r => setTimeout(r, 1000))
           webviewTag.value?.executeJavaScript("document.querySelector('div[role=dialog] button')?.click()")
           await new Promise(r => setTimeout(r, 2000))
-        }else if(responseBody.possible === false && responseBody.message.toLowerCase().startsWith('no appointments are available for this center at the moment')){
+        } else if (responseBody.possible === false && responseBody.message.toLowerCase().startsWith('no appointments are available for this center at the moment')) {
           await new Promise(r => setTimeout(r, 1000))
           webviewTag.value?.executeJavaScript("document.querySelector('div[role=dialog] button')?.click()")
           await new Promise(r => setTimeout(r, 2000))
@@ -262,9 +274,9 @@ const useBookingNavigator = (webviewTag: Ref<Electron.WebviewTag | null>, client
           webviewTag.value?.executeJavaScript("document.querySelector('div.sticky.bottom-0 button')?.click()")
         }
       }
-      
+
       if (response.url.startsWith('https://api-mauritania.blsinternational.com/api/v1/appointments/manage?')) {
-        if(busy){
+        if (busy) {
           console.log("it's busy...")
           return;
         }

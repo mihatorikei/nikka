@@ -24,7 +24,7 @@ const filterQuery = ref("");
 
 const clients = computed(() => {
   let result = store.clients.filter(
-    (c) => selectedState.value === ClientsBookingState.PENDING ? c.bookingState === selectedState.value || ClientsBookingState.LOCAL : c.bookingState === selectedState.value,
+    (c) => selectedState.value === ClientsBookingState.PENDING ? c.bookingState === ClientsBookingState.PENDING || c.bookingState === ClientsBookingState.LOCAL : c.bookingState === selectedState.value,
   );
   if (selectedWhale.value !== "all")
     result = result.filter(
